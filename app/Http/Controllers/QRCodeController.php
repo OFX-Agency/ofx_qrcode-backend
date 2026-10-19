@@ -17,8 +17,6 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 class QRCodeController extends Controller
 {
 
-
-
     ////////generate qr code for links direct
 
     public function generateQrCode(Request $request)
