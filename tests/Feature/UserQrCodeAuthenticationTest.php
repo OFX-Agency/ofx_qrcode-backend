@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -44,13 +45,33 @@ class UserQrCodeAuthenticationTest extends TestCase
         Schema::create('qrcodes', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('profile_id')->nullable();
         });
+
+        Schema::create('user_location', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('qrcode_id');
+            $table->text('location')->nullable();
+            $table->timestamps();
+        });
+
+        DB::table('qrcodes')->insert(['id' => 1, 'user_id' => 123]);
+        DB::table('user_location')->insert([
+            ['qrcode_id' => 1, 'location' => json_encode(['ip' => '1.1.1.1', 'country' => 'Egypt', 'city' => 'Cairo'])],
+            ['qrcode_id' => 1, 'location' => json_encode(['ip' => '1.1.1.1', 'country' => 'Egypt', 'city' => 'Cairo'])],
+            ['qrcode_id' => 1, 'location' => json_encode(['ip' => '2.2.2.2', 'country' => 'Egypt', 'city' => 'Giza'])],
+            ['qrcode_id' => 1, 'location' => 'invalid JSON'],
+        ]);
 
         Sanctum::actingAs((new User)->forceFill(['id' => 123]));
 
         $this->get('/api/user/qrcode')
             ->assertOk()
-            ->assertExactJson(['qr_codes' => []]);
+            ->assertJsonPath('qr_codes.0.device_count', 2)
+            ->assertJsonPath('qr_codes.0.locations', [
+                ['country' => 'Egypt', 'city' => 'Cairo'],
+                ['country' => 'Egypt', 'city' => 'Giza'],
+            ]);
     }
 
     public function test_web_errors_keep_their_html_response(): void

@@ -593,54 +593,47 @@ class QRCodeController extends Controller
 
 
     public function getQrcodeByUserId(Request $request)
-{
-    // Retrieve the authenticated user
-    $user = $request->user();
+    {
+        $qrCodeModels = QrCodeModel::where('user_id', $request->user()->id)
+            ->with('UserLocation', 'profile')
+            ->get();
 
-    try {
-        // Retrieve QR codes associated with the user's ID
-        $qrCodeModels = QrCodeModel::where('user_id', $user->id)->with('UserLocation','profile')->get();
+        $qrCodeData = $qrCodeModels->map(function (QrCodeModel $qrCode) {
+            $scanData = $qrCode->UserLocation
+                ->map(function (UserLocation $scan) {
+                    $location = json_decode($scan->location, true);
 
-        // Prepare an array to store QR codes with their user counts by IP
-        $qrCodeData = [];
-        foreach ($qrCodeModels as $qrCode) {
-            // Get the scan data grouped by unique city and country
-            $scanData = UserLocation::where('qrcode_id', $qrCode->id)
-                ->selectRaw("location->>'$.ip' as ip, location->>'$.country' as country, location->>'$.city' as city")
-                ->groupBy('ip', 'country', 'city')
-                ->get();
+                    return is_array($location) ? $location : null;
+                })
+                ->filter();
 
-            // Calculate the unique device count (based on IP)
-            $deviceCount = $scanData->unique('ip')->count();
+            $locationData = $scanData
+                ->unique(fn (array $location) => implode('|', [
+                    $location['ip'] ?? '',
+                    $location['country'] ?? '',
+                    $location['city'] ?? '',
+                ]))
+                ->map(fn (array $location) => [
+                    'country' => $location['country'] ?? null,
+                    'city' => $location['city'] ?? null,
+                ])
+                ->values();
 
-            // Map scan data to include only city and country for each location
-            $locationData = $scanData->map(function ($scan) {
-                return [
-                    'country' => $scan->country,
-                    'city' => $scan->city,
-                ];
-            });
-
-            // Add the QR code, location data, and device count to the result array
-            $qrCodeData[] = [
+            return [
                 'qr_code' => $qrCode,
                 'locations' => $locationData,
-                'device_count' => $deviceCount,
+                'device_count' => $scanData
+                    ->pluck('ip')
+                    ->filter()
+                    ->unique()
+                    ->count(),
             ];
-        }
+        });
 
-        // Return the QR codes with their associated user locations by city and country
         return response()->json([
             'qr_codes' => $qrCodeData,
         ], 200);
-
-    } catch (ModelNotFoundException $e) {
-        // Handle the case when no QR code is found
-        return response()->json([
-            'message' => 'QR code not found for this user.'
-        ], 404);
     }
-}
     // public function checkVisitorCount( $id)
     // {
     //     $qrcode = QrCodeModel::findOrFail($id);
