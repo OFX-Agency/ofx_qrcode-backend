@@ -58,15 +58,15 @@ Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleSi
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/generate-qrcode', [QRCodeController::class, 'generateQRCode']);
     Route::post('/generate-qrcode/whatsapp', [QRCodeController::class, 'generateWhatsappQrCode']);
-    Route::post('/generate-pdf-qrcode', [QRCodeController::class, 'generatePdfQrCode']);
-    Route::post('/generate-wifi-qrcode', [QRCodeController::class, 'generatewifiQrCode']);
+    Route::post('/generate-pdf-qrcode', [QrCodeController::class, 'generatePdfQrCode']);
+    Route::post('/generate-wifi-qrcode', [QrCodeController::class, 'generatewifiQrCode']);
 });
 
-Route::get('/scan_qrcode/{name}', [QRCodeController::class, 'trackAndRedirect']);
+Route::get('/scan_qrcode/{name}', [QrCodeController::class, 'trackAndRedirect']);
 
 
 
-Route::middleware('auth:sanctum')->get('/user/qrcode', [QRCodeController::class, 'getQrcodeByUserId']);
+Route::middleware('auth:sanctum')->get('/user/qrcode', [QrCodeController::class, 'getQrcodeByUserId']);
 
 
 Route::post('/generate-qrcode/whatsapp', [QRCodeController::class, 'generateWhatsappQrCode']);
